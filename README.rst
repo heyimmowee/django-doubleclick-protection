@@ -16,7 +16,7 @@ Installation
 
 	INSTALLED_APPS = (
 		# ...,
-		'django-doubleclick-protection'
+		'doubleclick_protection'
 		)
 
 Settings
