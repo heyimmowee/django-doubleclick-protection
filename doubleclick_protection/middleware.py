@@ -1,21 +1,22 @@
 # -*- coding: utf-8 -*-
 
-# TODO(hk): Generate new token per request, e.g.:
-#   request.META["CSRF_COOKIE"] = _get_new_csrf_key()
-
 """Middleware class."""
 
 import cPickle
 import os
+import threading
 import time
 
 from django.conf import settings
+from django.http import HttpResponse, HttpResponseForbidden
 from django.middleware.csrf import get_token, _get_new_csrf_key
 
 
 HTML_CONTENT_TYPES = (
     'text/html',
     'application/xhtml+xml',)
+
+MAX_WAIT = 30
 
 
 class CsrfTokenPerRequestMiddleware(object):
@@ -24,12 +25,9 @@ class CsrfTokenPerRequestMiddleware(object):
     def process_view(self, request, callback, callback_args, callback_kwargs):
         # Overwrite Django's token. We want a new token per request.
         #import ipdb; ipdb.set_trace()
-        #try:
-        #    del request.COOKIES[settings.CSRF_COOKIE_NAME]
-        #    #del request.META['CSRF_COOKIE']
-        #except KeyError:
-        #    pass
-        request.META["CSRF_COOKIE"] = _get_new_csrf_key()
+        token = _get_new_csrf_key()
+        print 'Generated token:', token
+        request.META['CSRF_COOKIE'] = token
 
 
 class DoubleClickProtectionMiddleware(object):
@@ -71,6 +69,9 @@ class DoubleClickProtectionMiddleware(object):
             return bool(data)
         return False
 
+    def _token_was_delivered(self, token):
+        return self.token_exists('delivered_tokens', token)
+
     def add_delivered_token(self, token):
         fname = os.path.join(self._cache_dir, 'tokens', token)
         if os.path.isfile(fname):
@@ -81,12 +82,18 @@ class DoubleClickProtectionMiddleware(object):
                 open(fname, 'w').close()
             except OSError, err:
                 raise StandardError(
-                    ('Could\'t write delivered token %s') % str(err))
+                    ('Could\'nt write delivered token %s') % str(err))
             return True
         return False
 
     def add_received_token(self, token):
-        pass
+        fname = os.path.join(self._cache_dir, 'received_tokens', token)
+        try:
+            open(fname, 'w').close()
+        except OSError, err:
+            raise StandardError(
+                'Error writing the information of a received token: %s'
+                % str(err))
 
     def token_exists(self, dir, token):
         """Checks, whether the token exists as a file.
@@ -119,16 +126,48 @@ class DoubleClickProtectionMiddleware(object):
         if request.method != 'POST':
             return
         token = request.POST.get('csrfmiddlewaretoken', None)
+        print 'Got token:', token
         if token is None:
             return
+        if not self._token_was_delivered(token):
+            return HttpResponseForbidden('Received unknown token')
+        # before_main_lock.acquire()
+        try:
+            if self.token_exists('received_tokens', token):
+                starting_time = time.time()
+                while not self._file_was_created():
+                    delta = time.time() - starting_time
+                    if delta > MAX_WAIT:
+                        # log warning
+                        return
+                    threading._sleep(1)
+                fname = os.path.join(self._cache_dir, 'tokens', token)
+                if os.path.isfile(fname):
+                    fp = open(fname, 'rb')
+                    data = cPickle.load(fp)
+                    fp.close()
+                    # raise response
+                    return HttpResponse(content=data[0], status=data[1])
+                else:
+                    # log warning
+                    return
+            else:
+                fname = os.path.join(self._cache_dir, 'file_infos', token)
+                fp = open(fname, 'w')
+                cPickle.dump(False, fp)
+                fp.close()
+                self.add_received_token(token)
+        finally:
+            pass
 
     def process_response(self, request, response):
-        if request.method != 'GET':
-            return response
-        token = request.COOKIES.get('csrftoken')
+        #if request.method != 'GET':
+        #    return response
+        #token = request.COOKIES.get('csrftoken')
+        token = request.META.get('CSRF_COOKIE')
         if not self.token_exists('delivered_tokens', token):
+            print 'Added token:', token
             self.add_delivered_token(token)
-        #import ipdb; ipdb.set_trace()
         fname = os.path.join(self._cache_dir, 'tokens', token)
         try:
             # File was already created
