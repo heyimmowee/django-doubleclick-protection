@@ -10,7 +10,7 @@ import os
 import time
 
 from django.conf import settings
-from django.middleware.csrf import get_token
+from django.middleware.csrf import get_token, _get_new_csrf_key
 
 
 HTML_CONTENT_TYPES = (
@@ -18,15 +18,18 @@ HTML_CONTENT_TYPES = (
     'application/xhtml+xml',)
 
 
-# class CsrfTokenPerRequestMiddleware(object):
+class CsrfTokenPerRequestMiddleware(object):
+    """Middleware to generate a new CSRF token per request."""
 
-#     def process_view(self, request, callback, callback_args, callback_kwargs):
-#         # Overwrite Django's token. We want a new token per request.
-#         import ipdb; ipdb.set_trace()
-#         try:
-#             del request.META['CSRF_COOKIE']
-#         except KeyError:
-#             pass
+    def process_view(self, request, callback, callback_args, callback_kwargs):
+        # Overwrite Django's token. We want a new token per request.
+        #import ipdb; ipdb.set_trace()
+        #try:
+        #    del request.COOKIES[settings.CSRF_COOKIE_NAME]
+        #    #del request.META['CSRF_COOKIE']
+        #except KeyError:
+        #    pass
+        request.META["CSRF_COOKIE"] = _get_new_csrf_key()
 
 
 class DoubleClickProtectionMiddleware(object):
@@ -110,14 +113,6 @@ class DoubleClickProtectionMiddleware(object):
             raise StandardError('Could\'nt remove token %s in directory %s: %s'
                 % (token, dir, str(err)))
 
-    def store_response(self, response):
-        """Saves the response into a file."""
-        fp = open(fname, 'wb')
-        data = [response.serialize(), response.status_code,
-            response.serialize_headers()]
-        cPickle.dump(data, fp)
-        fp.close()
-
     def process_request(self, request):
         # Check for request.user.is_anonymous() ?
         # Check for content-type?
@@ -130,20 +125,22 @@ class DoubleClickProtectionMiddleware(object):
     def process_response(self, request, response):
         if request.method != 'GET':
             return response
-
         token = request.COOKIES.get('csrftoken')
         if not self.token_exists('delivered_tokens', token):
             self.add_delivered_token(token)
-
         #import ipdb; ipdb.set_trace()
-
         fname = os.path.join(self._cache_dir, 'tokens', token)
         try:
             # File was already created
             if self._file_was_created(token):
                 return response
             if not os.path.isfile(fname):
-                self.store_response()
+                fname = os.path.join(self._cache_dir, 'tokens', token)
+                fp = open(fname, 'wb')
+                data = [response.serialize(), response.status_code,
+                        response.serialize_headers()]
+                cPickle.dump(data, fp)
+                fp.close()
                 fname = os.path.join(self._cache_dir, 'file_infos', token)
                 fp = open(fname, 'wb')
                 cPickle.dump(True, fp)
