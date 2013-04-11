@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 
+# TODO(hk): Skip on requests with static data
+
 """Middleware class."""
 
 import cPickle
+import logging
 import os
+import thread
 import threading
 import time
 
@@ -12,11 +16,18 @@ from django.http import HttpResponse, HttpResponseForbidden
 from django.middleware.csrf import get_token, _get_new_csrf_key
 
 
+logger = logging.getLogger(__name__)
+
+
+cache_dir_lock = threading.RLock()
+before_main_lock = threading.RLock()
+
+
 HTML_CONTENT_TYPES = (
     'text/html',
     'application/xhtml+xml',)
 
-MAX_WAIT = 30
+MAX_WAIT = 5 # 30
 
 
 class CsrfTokenPerRequestMiddleware(object):
@@ -46,7 +57,7 @@ class DoubleClickProtectionMiddleware(object):
                 os.path.join(self._cache_dir, 'file_infos'),
                 os.path.join(self._cache_dir, 'received_tokens'))
         for dir in dirs:
-            #cache_dir_lock.acquire()
+            cache_dir_lock.acquire()
             try:
                 if os.path.isdir(dir):
                     continue
@@ -57,8 +68,7 @@ class DoubleClickProtectionMiddleware(object):
                         'Could\'nt create directory %s: %s'
                         % (dir, str(err)))
             finally:
-                pass
-            #    cache_dir_lock.release()
+                cache_dir_lock.release()
 
     def _file_was_created(self, token):
         if self.token_exists('received_tokens', token):
@@ -68,6 +78,13 @@ class DoubleClickProtectionMiddleware(object):
             fp.close()
             return bool(data)
         return False
+
+    def _file_was_saved(self, token):
+        fname = os.path.join(self._cache_dir, 'file_infos', token)
+        fp = open(fname, 'rb')
+        data = cPickle.load(fp)
+        fp.close()
+        return data == True
 
     def _token_was_delivered(self, token):
         return self.token_exists('delivered_tokens', token)
@@ -124,59 +141,75 @@ class DoubleClickProtectionMiddleware(object):
         # Check for request.user.is_anonymous() ?
         # Check for content-type?
         if request.method != 'POST':
-            return
+            return None
         token = request.POST.get('csrfmiddlewaretoken', None)
-        print 'Got token:', token
         if token is None:
-            return
+            return None
+        print 'Got token:', token
         if not self._token_was_delivered(token):
             return HttpResponseForbidden('Received unknown token')
-        # before_main_lock.acquire()
+        before_main_lock.acquire()
         try:
+            #import ipdb; ipdb.set_trace()
             if self.token_exists('received_tokens', token):
+                #import ipdb; ipdb.set_trace()
                 starting_time = time.time()
-                while not self._file_was_created():
-                    delta = time.time() - starting_time
-                    if delta > MAX_WAIT:
-                        # log warning
-                        return
-                    threading._sleep(1)
+                #while not self._file_was_saved(token):
+                 #   delta = time.time() - starting_time
+                 #   if delta > MAX_WAIT:
+                 #       #logger.warning(
+                 #       #    'Thread %s had to wait more than %s seconds.'
+                 #       #    % (thread.get_ident(), MAX_WAIT))
+                 #       print 'Thread %s had to wait more than %s seconds.' % (thread.get_ident(), MAX_WAIT)
+                 #       return
+                 #   threading._sleep(1)
                 fname = os.path.join(self._cache_dir, 'tokens', token)
                 if os.path.isfile(fname):
+                    print 'Returning old response'
                     fp = open(fname, 'rb')
                     data = cPickle.load(fp)
                     fp.close()
-                    # raise response
+                    #print "X" * 80
+                    #print data[0]
+                    #print "X" * 80
+                    #print data[1]
                     return HttpResponse(content=data[0], status=data[1])
                 else:
+                    print 'Response not found'
                     # log warning
-                    return
+                    return None
             else:
+                print "Add received token:", token
                 fname = os.path.join(self._cache_dir, 'file_infos', token)
                 fp = open(fname, 'w')
                 cPickle.dump(False, fp)
                 fp.close()
                 self.add_received_token(token)
         finally:
-            pass
+            before_main_lock.release()
+        return None
 
     def process_response(self, request, response):
         #if request.method != 'GET':
         #    return response
         #token = request.COOKIES.get('csrftoken')
         token = request.META.get('CSRF_COOKIE')
+        if token is None:
+            return response
         if not self.token_exists('delivered_tokens', token):
             print 'Added token:', token
             self.add_delivered_token(token)
+        cache_dir_lock.acquire()
         fname = os.path.join(self._cache_dir, 'tokens', token)
         try:
-            # File was already created
             if self._file_was_created(token):
+                cache_dir_lock.release()
                 return response
             if not os.path.isfile(fname):
                 fname = os.path.join(self._cache_dir, 'tokens', token)
                 fp = open(fname, 'wb')
-                data = [response.serialize(), response.status_code,
+                # response.serialize()
+                data = [response.content, response.status_code,
                         response.serialize_headers()]
                 cPickle.dump(data, fp)
                 fp.close()
@@ -187,6 +220,6 @@ class DoubleClickProtectionMiddleware(object):
             else:
                 pass
         finally:
-            pass
-
+            if cache_dir_lock._is_owned():
+                cache_dir_lock.release()
         return response
