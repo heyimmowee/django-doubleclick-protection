@@ -169,10 +169,6 @@ class DoubleClickProtectionMiddleware(object):
                     fp = open(fname, 'rb')
                     data = cPickle.load(fp)
                     fp.close()
-                    #print "X" * 80
-                    #print data[0]
-                    #print "X" * 80
-                    #print data[1]
                     return HttpResponse(content=data[0], status=data[1])
                 else:
                     print 'Response not found'

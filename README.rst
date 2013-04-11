@@ -10,6 +10,19 @@ wrote the first version and I refactored it over the years, e.g. to
 use the filesystem instead of a database variant. This is an attempt to
 port the code to a reusable Django application.
 
+Features
+========
+
+``django-doubleclick-protection`` uses Django's CSRF token middleware to prevent
+multiple view calls with more than one click. First of all this application
+will generate a new token for each request to make every request unique. No
+form should be submitted more than once. Therefore every token will be saved
+in the filesystem. Additionally the application will save the content from the
+first response. If the user submits a form more than once a time, the token
+will be recognized as already received and the middleware will return the old
+response instead of calling the view multiple times. The following graphic
+describes this method:
+
 Installation
 ============
 
@@ -26,7 +39,7 @@ Installation
         'doubleclick_protection',
         )
 
-#. Add the middleware right after Django's CSRF middleware::
+#. Add the middleware classes right after Django's CSRF middleware::
 
     MIDDLEWARE_CLASSES = (
         # ...
