@@ -1,12 +1,18 @@
 # -*- coding: utf-8 -*-
 
+import cPickle
+import os
+
 from django.conf.urls.defaults import include, patterns, url
-from django.http import HttpResponse, HttpRequest
+from django.http import HttpResponse, HttpRequest, HttpResponse
 from django.test import TestCase
 from django.test.client import Client, RequestFactory
+from django.test.utils import override_settings
 from django.views.generic import View
 
-from .middleware import CsrfTokenPerRequestMiddleware
+from .middleware import (
+    CsrfTokenPerRequestMiddleware,
+    DoubleClickProtectionMiddleware,)
 
 
 class MockView(View):
@@ -40,4 +46,82 @@ class CsrfTokenPerRequestMiddlewareTest(TestCase):
         request.session = {}
         response = self.middleware.process_view(request, lambda x: x, [], {})
         token2 = request.META.get('CSRF_COOKIE', None)
+        self.assertIsNotNone(token2)
         self.assertNotEqual(token1, token2)
+
+
+@override_settings(
+    DCLICK_CACHE_DIR='test_tokens',
+    MIDDLEWARE_CLASSES=(
+        'django.middleware.csrf.CsrfViewMiddleware',
+        'doubleclick_protection.middleware.CsrfTokenPerRequestMiddleware',
+        'doubleclick_protection.middleware.DoubleClickProtectionMiddleware',))
+class DoubleClickProtectionMiddlewareTest(TestCase):
+    """Testcase for the :class:`DoubleClickProtectionMiddlewareTest`"""
+
+    urls = 'doubleclick_protection.tests'
+
+    def test_should_create_directories(self):
+        self.assertTrue(os.path.isdir('test_tokens'))
+        self.assertTrue(os.path.isdir(os.path.join('test_tokens', 'tokens')))
+        self.assertTrue(os.path.isdir(os.path.join('test_tokens',
+                                                   'delivered_tokens')))
+        self.assertTrue(os.path.isdir(os.path.join('test_tokens',
+                                                   'file_infos')))
+        self.assertTrue(os.path.isdir(os.path.join('test_tokens',
+                                                   'received_tokens')))
+
+    def test_should_add_delivered_token(self):
+        # Middlewares need to be called manually to be able to fetch the
+        # generated token.
+        m1 = CsrfTokenPerRequestMiddleware()
+        m2 = DoubleClickProtectionMiddleware()
+        factory = RequestFactory()
+        request = factory.get('foo/')
+        request.session = {}
+        response = HttpResponse()
+        m1.process_view(request, lambda x: x, [], {})
+        m2.process_request(request)
+        m2.process_response(request, response)
+        token = request.META.get('CSRF_COOKIE', None)
+        self.assertTrue(os.path.isfile(os.path.join('test_tokens',
+            'delivered_tokens', token)))
+        self.assertTrue(os.path.isfile(os.path.join('test_tokens',
+            'tokens', token)))
+        self.assertTrue(os.path.isfile(os.path.join('test_tokens',
+            'file_infos', token)))
+
+    def test_should_save_response(self):
+        m1 = CsrfTokenPerRequestMiddleware()
+        m2 = DoubleClickProtectionMiddleware()
+        factory = RequestFactory()
+        request = factory.get('foo/')
+        request.session = {}
+        response = HttpResponse()
+        m1.process_view(request, lambda x: x, [], {})
+        m2.process_request(request)
+        m2.process_response(request, response)
+        token = request.META.get('CSRF_COOKIE', None)
+        fp = open(os.path.join('test_tokens', 'tokens', token), 'rb')
+        data = cPickle.load(fp)
+        fp.close()
+        self.assertEqual(data, ['', 200,
+                        'Content-Type: text/html; charset=utf-8'])
+        fp = open(os.path.join('test_tokens', 'file_infos', token), 'rb')
+        data = cPickle.load(fp)
+        fp.close()
+        self.assertEqual(data, True)
+
+    def test_should_skip_on_wrong_content_type(self):
+        pass
+
+    def test_should_add_received_token(self):
+        pass
+
+    def test_should_fail_on_wrong_token(self):
+        pass
+
+    def test_should_return_response_from_file(self):
+        pass
+
+
