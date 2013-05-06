@@ -10,7 +10,7 @@ from django.test.client import Client, RequestFactory
 from django.test.utils import override_settings
 from django.views.generic import View
 
-from .middleware import (
+from doubleclick_protection.middleware import (
     CsrfTokenPerRequestMiddleware,
     DoubleClickProtectionMiddleware,)
 

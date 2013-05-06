@@ -20,8 +20,9 @@ form should be submitted more than once. Therefore every token will be saved
 in the filesystem. Additionally the application will save the content from the
 first response. If the user submits a form more than once a time, the token
 will be recognized as already received and the middleware will return the old
-response instead of calling the view multiple times. The following graphic
-describes this method:
+response instead of calling the view multiple times.
+
+https://travis-ci.org/hkage/django-doubleclick-protection.png
 
 Installation
 ============
