@@ -55,4 +55,12 @@ Settings
 ``DCLICK_CACHE_DIR``
   Directory for the tokens to be stored.
 
+``DCLICK_MAX_TOKEN_AGE`` (Default 86400)
+  Maximum token age (in seconds) before the token will be deleted.
+
 __ https://github.com/mbrochh
+
+Commands
+========
+
+``clear_tokens``
