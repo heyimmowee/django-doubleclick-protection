@@ -9,4 +9,4 @@ env:
 install:
   - pip install $DJANGO
 script:
-  - python doubleclick_protection/
+  - python doubleclick_protection/runtests/runtests.py
