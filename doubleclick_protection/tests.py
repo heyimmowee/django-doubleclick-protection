@@ -61,9 +61,12 @@ class DoubleClickProtectionMiddlewareTest(TestCase):
             'django.middleware.csrf.CsrfViewMiddleware',
             'doubleclick_protection.middleware.CsrfTokenPerRequestMiddleware',
             'doubleclick_protection.middleware.DoubleClickProtectionMiddleware')
+        self.OLD_DCLICK_CACHE_DIR = settings.DCLICK_CACHE_DIR
+        settings.DCLICK_CACHE_DIR = 'test_tokens'
 
     def tearDown(self):
         settings.MIDDLEWARE_CLASSES = self.OLD_MIDDLEWARE_CLASSES
+        settings.DCLICK_CACHE_DIR = self.OLD_DCLICK_CACHE_DIR
 
     def test_should_create_directories(self):
         self.assertTrue(os.path.isdir('test_tokens'))
