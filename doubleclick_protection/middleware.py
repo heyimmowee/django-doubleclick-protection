@@ -137,6 +137,14 @@ class DoubleClickProtectionMiddleware(object):
             raise StandardError('Could\'nt remove token %s in directory %s: %s'
                 % (token, dir, str(err)))
 
+    def serialize_headers(self, response):
+        """HTTP headers as a bytestring."""
+        headers = [
+            ('%s: %s' % (key, value)).encode('us-ascii')
+            for key, value in response._headers.values()
+        ]
+        return b'\r\n'.join(headers)
+
     def process_request(self, request):
         # Check for request.user.is_anonymous() ?
         # Check for content-type?
@@ -206,7 +214,7 @@ class DoubleClickProtectionMiddleware(object):
                 fp = open(fname, 'wb')
                 # response.serialize()
                 data = [response.content, response.status_code,
-                        response.serialize_headers()]
+                        self.serialize_headers(response)]
                 cPickle.dump(data, fp)
                 fp.close()
                 fname = os.path.join(self._cache_dir, 'file_infos', token)
