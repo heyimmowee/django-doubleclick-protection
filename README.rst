@@ -22,7 +22,7 @@ first response. If the user submits a form more than once a time, the token
 will be recognized as already received and the middleware will return the old
 response instead of calling the view multiple times.
 
-https://travis-ci.org/hkage/django-doubleclick-protection.png
+|buildstatus|_
 
 Installation
 ============
