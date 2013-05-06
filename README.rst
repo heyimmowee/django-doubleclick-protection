@@ -69,6 +69,9 @@ Commands
 ========
 
 ``clear_tokens``
+  This command will remove all token files that are older than
+  ``DCLICK_MAX_TOKEN_AGE`` seconds. It should be called at least once per day
+  to remove obsolete tokens.
 
 .. |buildstatus| image:: https://secure.travis-ci.org/hkage/django-doubleclick-protection.png?branch=master
 .. _buildstatus: http://travis-ci.org/#!/hkage/django-doubleclick-protection
