@@ -65,3 +65,6 @@ Commands
 ========
 
 ``clear_tokens``
+
+.. |buildstatus| image:: https://secure.travis-ci.org/hkage/django-doubleclick-protection.png?branch=master
+.. _buildstatus: http://travis-ci.org/#!/hkage/django-doubleclick-protection
