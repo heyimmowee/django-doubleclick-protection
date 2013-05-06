@@ -54,5 +54,5 @@ setup(
     author_email='henning.kage@gmail.com',
     packages=get_packages(package),
     package_data=get_package_data(package),
-    install_requires=['Django>=1.3']
+    install_requires=['Django>=1.5']
 )
