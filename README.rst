@@ -33,14 +33,18 @@ Installation
 
     $ git clone git://github.com/hkage/django-doubleclick-protection.git#egg=django-doubleclick-protection
 
-#. Add ``django-doubleclick-protection`` to the list of installed apps::
+#. Add ``django-doubleclick-protection`` to the list of installed apps:
+
+.. code-block:: python
 
     INSTALLED_APPS = (
         # ...
         'doubleclick_protection',
         )
 
-#. Add the middleware classes right after Django's CSRF middleware::
+#. Add the middleware classes right after Django's CSRF middleware:
+
+.. code-block:: python
 
     MIDDLEWARE_CLASSES = (
         # ...
