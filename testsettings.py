@@ -132,7 +132,6 @@ INSTALLED_APPS = (
 # the site admins on every HTTP 500 error when DEBUG=False.
 # See http://docs.djangoproject.com/en/dev/topics/logging for
 # more details on how to customize your logging configuration.
-LOGGING = {}
 
 DCLICK_CACHE_DIR = 'tokens'
 DCLICK_MAX_TOKEN_AGE = 86400
