@@ -46,13 +46,13 @@ if sys.argv[-1] == 'publish':
 
 setup(
     name='django-doubleclick-protection',
-    version=get_version(package),
+    version=get_version('doubleclick_protection'),
     url='http://github.com/hkage/django-doubleclick-protection',
     license='',
     description='',
     author='Henning Kage',
     author_email='henning.kage@gmail.com',
-    packages=get_packages(package),
-    package_data=get_package_data(package),
+    packages=get_packages('doubleclick_protection'),
+    package_data=get_package_data('doubleclick_protection'),
     install_requires=['Django>=1.3']
 )
