@@ -16,6 +16,7 @@ from doubleclick_protection.middleware import (
 
 
 class MockView(View):
+    """Test view for general view tests."""
 
     def get(self, request):
         return HttpResponse({'a': 1, 'b': 2, 'c': 3})
@@ -24,8 +25,18 @@ class MockView(View):
         return HttpResponse({'a': 1, 'b': 2, 'c': 3})
 
 
+class MockStaticContentView(View):
+    """Test view for static data."""
+
+    def get(self, request):
+        response = HttpResponse()
+        response['Content-Type'] = ''
+        return response
+
+
 urlpatterns = patterns('',
     url(r'^foo/$', MockView.as_view()),
+    url(r'^foo2/$', MockStaticContentView.as_view()),
 )
 
 
