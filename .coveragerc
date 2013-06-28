@@ -1,0 +1,10 @@
+[run]
+source =
+    doubleclick_protection
+[report]
+omit =
+    */tests.py
+    */settings*.py
+exclude_lines =
+    if self.debug:
+    raise NotImplementedError
