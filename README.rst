@@ -3,6 +3,9 @@ django-doubleclick-protection
 
 A server-side attempt to prohibit double clicks in Django applications.
 
+|buildstatus|_
+|coverage|_
+
 The idea behind this was born with a Turbogears project we wrote in our
 company. We wanted to create a solution to solve the double-click
 problem without relying on a client-side solution. `Martin Brochhaus`__
@@ -21,8 +24,6 @@ in the filesystem. Additionally the application will save the content from the
 first response. If the user submits a form more than once a time, the token
 will be recognized as already received and the middleware will return the old
 response instead of calling the view multiple times.
-
-|buildstatus|_
 
 Installation
 ============
@@ -75,3 +76,5 @@ Commands
 
 .. |buildstatus| image:: https://secure.travis-ci.org/hkage/django-doubleclick-protection.png?branch=master
 .. _buildstatus: http://travis-ci.org/#!/hkage/django-doubleclick-protection
+.. |coverage| image:: https://coveralls.io/repos/hkage/django-doubleclick-protection/badge.png?branch=master
+.. _coverage: https://coveralls.io/repos/hkage/django-doubleclick-protection
