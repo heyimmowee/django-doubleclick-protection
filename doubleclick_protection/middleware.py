@@ -5,7 +5,6 @@
 """Middleware class."""
 
 import cPickle
-from functools import wraps
 import logging
 import os
 import thread
@@ -26,6 +25,7 @@ before_main_lock = threading.RLock()
 
 HTML_CONTENT_TYPES = (
     'text/html',
+    'text/plain',
     'application/xhtml+xml',)
 
 MAX_WAIT = 5 # 30
@@ -111,6 +111,9 @@ class DoubleClickProtectionMiddleware(object):
     def get_filename(self, directory, token):
         return os.path.join(self._cache_dir, directory, token)
 
+    def is_static_request(self, request):
+        return request.META['CONTENT_TYPE'] not in HTML_CONTENT_TYPES
+
     def token_exists(self, dir, token):
         """Checks, whether the token exists as a file.
 
@@ -145,7 +148,6 @@ class DoubleClickProtectionMiddleware(object):
         return b'\r\n'.join(headers)
 
     def process_request(self, request):
-        # Check for request.user.is_anonymous() ?
         # Check for content-type?
         if request.method != 'POST':
             return None
@@ -189,8 +191,10 @@ class DoubleClickProtectionMiddleware(object):
         return None
 
     def process_response(self, request, response):
-        #if request.method != 'GET':
+        #if request.user.is_anonymous():
         #    return response
+        if self.is_static_request(request):
+            return response
         token = request.META.get('CSRF_COOKIE')
         if token is None:
             return response
