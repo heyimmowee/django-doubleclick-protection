@@ -55,6 +55,12 @@ Installation
         # ...
         )
 
+Please note the order of the middleware classes. The
+``CsrfTokenPerRequestMiddleware`` needs to be called before
+``DoubleClickProtectionMiddleware`` in order to generate a new CSRF token per
+request. Django only generates a token per session, which makes it useless for
+unique form submits.
+
 Settings
 ========
 
