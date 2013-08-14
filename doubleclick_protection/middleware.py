@@ -5,6 +5,7 @@
 """Middleware class."""
 
 import cPickle
+from functools import wraps
 import logging
 import os
 import thread
@@ -34,10 +35,8 @@ class CsrfTokenPerRequestMiddleware(object):
     """Middleware to generate a new CSRF token per request."""
 
     def process_view(self, request, callback, callback_args, callback_kwargs):
-        # Overwrite Django's token. We want a new token per request.
-        #import ipdb; ipdb.set_trace()
         token = _get_new_csrf_key()
-        print 'Generated token:', token
+        print 'New token %s' % token
         request.META['CSRF_COOKIE'] = token
 
 
@@ -57,8 +56,7 @@ class DoubleClickProtectionMiddleware(object):
                 os.path.join(self._cache_dir, 'file_infos'),
                 os.path.join(self._cache_dir, 'received_tokens'))
         for dir in dirs:
-            cache_dir_lock.acquire()
-            try:
+            with cache_dir_lock:
                 if os.path.isdir(dir):
                     continue
                 try:
@@ -67,12 +65,10 @@ class DoubleClickProtectionMiddleware(object):
                     raise StandardError(
                         'Could\'nt create directory %s: %s'
                         % (dir, str(err)))
-            finally:
-                cache_dir_lock.release()
 
     def _file_was_created(self, token):
         if self.token_exists('received_tokens', token):
-            fname = os.path.join(self._cache_dir, 'file_infos', token)
+            fname = self.get_filename('file_infos', token)
             fp = open(fname, 'rb')
             data = cPickle.load(fp)
             fp.close()
@@ -80,7 +76,7 @@ class DoubleClickProtectionMiddleware(object):
         return False
 
     def _file_was_saved(self, token):
-        fname = os.path.join(self._cache_dir, 'file_infos', token)
+        fname = self.get_filename('file_infos', token)
         fp = open(fname, 'rb')
         data = cPickle.load(fp)
         fp.close()
@@ -90,11 +86,11 @@ class DoubleClickProtectionMiddleware(object):
         return self.token_exists('delivered_tokens', token)
 
     def add_delivered_token(self, token):
-        fname = os.path.join(self._cache_dir, 'tokens', token)
+        fname = self.get_filename('tokens', token)
         if os.path.isfile(fname):
             return False
         if not self.token_exists('delivered_tokens', token):
-            fname = os.path.join(self._cache_dir, 'delivered_tokens', token)
+            fname = self.get_filename('delivered_tokens', token)
             try:
                 open(fname, 'w').close()
             except OSError, err:
@@ -104,13 +100,16 @@ class DoubleClickProtectionMiddleware(object):
         return False
 
     def add_received_token(self, token):
-        fname = os.path.join(self._cache_dir, 'received_tokens', token)
+        fname = self.get_filename('received_tokens', token)
         try:
             open(fname, 'w').close()
         except OSError, err:
             raise StandardError(
                 'Error writing the information of a received token: %s'
                 % str(err))
+
+    def get_filename(self, directory, token):
+        return os.path.join(self._cache_dir, directory, token)
 
     def token_exists(self, dir, token):
         """Checks, whether the token exists as a file.
@@ -130,7 +129,7 @@ class DoubleClickProtectionMiddleware(object):
         :param dir:
         :param token:
         """
-        fname = os.path.join(self._cache_dir, dir, token)
+        fname = self.get_filename(dir, token)
         try:
             os.remove(fname)
         except OSError, err:
@@ -156,9 +155,7 @@ class DoubleClickProtectionMiddleware(object):
         print 'Got token:', token
         if not self._token_was_delivered(token):
             return HttpResponseForbidden('Received unknown token')
-        before_main_lock.acquire()
-        try:
-            #import ipdb; ipdb.set_trace()
+        with before_main_lock:
             if self.token_exists('received_tokens', token):
                 #import ipdb; ipdb.set_trace()
                 starting_time = time.time()
@@ -171,7 +168,7 @@ class DoubleClickProtectionMiddleware(object):
                  #       print 'Thread %s had to wait more than %s seconds.' % (thread.get_ident(), MAX_WAIT)
                  #       return
                  #   threading._sleep(1)
-                fname = os.path.join(self._cache_dir, 'tokens', token)
+                fname = self.get_filename('tokens', token)
                 if os.path.isfile(fname):
                     print 'Returning old response'
                     fp = open(fname, 'rb')
@@ -184,19 +181,16 @@ class DoubleClickProtectionMiddleware(object):
                     return None
             else:
                 print "Add received token:", token
-                fname = os.path.join(self._cache_dir, 'file_infos', token)
+                fname = self.get_filename('file_infos', token)
                 fp = open(fname, 'w')
                 cPickle.dump(False, fp)
                 fp.close()
                 self.add_received_token(token)
-        finally:
-            before_main_lock.release()
         return None
 
     def process_response(self, request, response):
         #if request.method != 'GET':
         #    return response
-        #token = request.COOKIES.get('csrftoken')
         token = request.META.get('CSRF_COOKIE')
         if token is None:
             return response
@@ -204,20 +198,19 @@ class DoubleClickProtectionMiddleware(object):
             print 'Added token:', token
             self.add_delivered_token(token)
         cache_dir_lock.acquire()
-        fname = os.path.join(self._cache_dir, 'tokens', token)
+        fname = self.get_filename('tokens', token)
         try:
             if self._file_was_created(token):
                 cache_dir_lock.release()
                 return response
             if not os.path.isfile(fname):
-                fname = os.path.join(self._cache_dir, 'tokens', token)
+                fname = self.get_filename('tokens', token)
                 fp = open(fname, 'wb')
-                # response.serialize()
                 data = [response.content, response.status_code,
                         self.serialize_headers(response)]
                 cPickle.dump(data, fp)
                 fp.close()
-                fname = os.path.join(self._cache_dir, 'file_infos', token)
+                fname = self.get_filename('file_infos', token)
                 fp = open(fname, 'wb')
                 cPickle.dump(True, fp)
                 fp.close()
