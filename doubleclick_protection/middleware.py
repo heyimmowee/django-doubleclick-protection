@@ -117,10 +117,23 @@ class DoubleClickProtectionMiddleware(object):
                 % str(err))
 
     def get_filename(self, directory, token):
+        """Returns the complete filename for a token from a specific dir.
+
+        :param directory:
+        :param token:
+        :returns: Complete path of the token file
+        """
         return os.path.join(self._cache_dir, directory, token)
 
     def is_static_request(self, request):
-        """Checks whether the request content type is static."""
+        """Checks whether the request content type is static.
+
+        Although a productive Django application won't serve static content,
+        we want to pass all requests, that are not HTML content types.
+
+        :param request:
+        :returns: ``True`` or ``False``
+        """
         return request.META['CONTENT_TYPE'] not in HTML_CONTENT_TYPES
 
     def token_exists(self, dir, token):
@@ -169,17 +182,15 @@ class DoubleClickProtectionMiddleware(object):
             return HttpResponseForbidden('Received unknown token')
         with before_main_lock:
             if self.token_exists('received_tokens', token):
-                # import ipdb; ipdb.set_trace()
-                starting_time = time.time()
-                #while not self._file_was_saved(token):
-                #   delta = time.time() - starting_time
-                #   if delta > MAX_WAIT:
-                #       #logger.warning(
-                #       #    'Thread %s had to wait more than %s seconds.'
-                #       #    % (thread.get_ident(), MAX_WAIT))
-                #       print 'Thread %s had to wait more than %s seconds.' % (thread.get_ident(), MAX_WAIT)
-                #       return
-                #   threading._sleep(1)
+                # starting_time = time.time()
+                # while not self._file_was_saved(token):
+                #    delta = time.time() - starting_time
+                #    if delta > MAX_WAIT:
+                #        logger.warning(
+                #            'Thread %s had to wait more than %s seconds.'
+                #            % (thread.get_ident(), MAX_WAIT))
+                #        return
+                #    threading._sleep(1)
                 fname = self.get_filename('tokens', token)
                 if os.path.isfile(fname):
                     logger.debug('Returning saved response')
@@ -204,7 +215,7 @@ class DoubleClickProtectionMiddleware(object):
         #    return response
         if self.is_static_request(request):
             return response
-        token = request.META.get('CSRF_COOKIE')
+        token = request.META.get('CSRF_COOKIE', None)
         if token is None:
             return response
         if not self.token_exists('delivered_tokens', token):
