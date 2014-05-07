@@ -16,19 +16,18 @@ from django.http import HttpResponse, HttpResponseForbidden
 from django.middleware.csrf import get_token, _get_new_csrf_key
 
 
-logger = logging.getLogger(__name__)
-
+logger = logging.getLogger('doubleclick_protection')
 
 cache_dir_lock = threading.RLock()
 before_main_lock = threading.RLock()
 
-
 HTML_CONTENT_TYPES = (
     'text/html',
     'text/plain',
+    'application/xml',
     'application/xhtml+xml',)
 
-MAX_WAIT = 5 # 30
+MAX_WAIT = 5  # 30
 
 
 class CsrfTokenPerRequestMiddleware(object):
@@ -36,7 +35,7 @@ class CsrfTokenPerRequestMiddleware(object):
 
     def process_view(self, request, callback, callback_args, callback_kwargs):
         token = _get_new_csrf_key()
-        print 'New token %s' % token
+        logger.debug('Generated token %s' % token)
         request.META['CSRF_COOKIE'] = token
 
 
@@ -83,9 +82,14 @@ class DoubleClickProtectionMiddleware(object):
         return data == True
 
     def _token_was_delivered(self, token):
+        """Check, whether a token as already been delivered."""
         return self.token_exists('delivered_tokens', token)
 
     def add_delivered_token(self, token):
+        """Mark a token as delivered.
+
+        :param token:
+        """
         fname = self.get_filename('tokens', token)
         if os.path.isfile(fname):
             return False
@@ -100,6 +104,10 @@ class DoubleClickProtectionMiddleware(object):
         return False
 
     def add_received_token(self, token):
+        """Mark a token as received.
+
+        :param token:
+        """
         fname = self.get_filename('received_tokens', token)
         try:
             open(fname, 'w').close()
@@ -112,6 +120,7 @@ class DoubleClickProtectionMiddleware(object):
         return os.path.join(self._cache_dir, directory, token)
 
     def is_static_request(self, request):
+        """Checks whether the request content type is static."""
         return request.META['CONTENT_TYPE'] not in HTML_CONTENT_TYPES
 
     def token_exists(self, dir, token):
@@ -119,6 +128,7 @@ class DoubleClickProtectionMiddleware(object):
 
         :param dir:
         :param token:
+        :returns ``True`` or ``False``
         """
         try:
             os.stat(os.path.join(self._cache_dir, dir, token))
@@ -137,7 +147,7 @@ class DoubleClickProtectionMiddleware(object):
             os.remove(fname)
         except OSError, err:
             raise StandardError('Could\'nt remove token %s in directory %s: %s'
-                % (token, dir, str(err)))
+                                % (token, dir, str(err)))
 
     def serialize_headers(self, response):
         """HTTP headers as a bytestring."""
@@ -154,35 +164,34 @@ class DoubleClickProtectionMiddleware(object):
         token = request.POST.get('csrfmiddlewaretoken', None)
         if token is None:
             return None
-        print 'Got token:', token
+        logger.debug('Got token %s' % token)
         if not self._token_was_delivered(token):
             return HttpResponseForbidden('Received unknown token')
         with before_main_lock:
             if self.token_exists('received_tokens', token):
-                #import ipdb; ipdb.set_trace()
+                # import ipdb; ipdb.set_trace()
                 starting_time = time.time()
                 #while not self._file_was_saved(token):
-                 #   delta = time.time() - starting_time
-                 #   if delta > MAX_WAIT:
-                 #       #logger.warning(
-                 #       #    'Thread %s had to wait more than %s seconds.'
-                 #       #    % (thread.get_ident(), MAX_WAIT))
-                 #       print 'Thread %s had to wait more than %s seconds.' % (thread.get_ident(), MAX_WAIT)
-                 #       return
-                 #   threading._sleep(1)
+                #   delta = time.time() - starting_time
+                #   if delta > MAX_WAIT:
+                #       #logger.warning(
+                #       #    'Thread %s had to wait more than %s seconds.'
+                #       #    % (thread.get_ident(), MAX_WAIT))
+                #       print 'Thread %s had to wait more than %s seconds.' % (thread.get_ident(), MAX_WAIT)
+                #       return
+                #   threading._sleep(1)
                 fname = self.get_filename('tokens', token)
                 if os.path.isfile(fname):
-                    print 'Returning old response'
+                    logger.debug('Returning saved response')
                     fp = open(fname, 'rb')
                     data = cPickle.load(fp)
                     fp.close()
                     return HttpResponse(content=data[0], status=data[1])
                 else:
-                    print 'Response not found'
-                    # log warning
+                    logger.warning('Response not found')
                     return None
             else:
-                print "Add received token:", token
+                logger.debug('Add received token: %s' % token)
                 fname = self.get_filename('file_infos', token)
                 fp = open(fname, 'w')
                 cPickle.dump(False, fp)
@@ -191,7 +200,7 @@ class DoubleClickProtectionMiddleware(object):
         return None
 
     def process_response(self, request, response):
-        #if request.user.is_anonymous():
+        # if request.user.is_anonymous():
         #    return response
         if self.is_static_request(request):
             return response
@@ -199,7 +208,7 @@ class DoubleClickProtectionMiddleware(object):
         if token is None:
             return response
         if not self.token_exists('delivered_tokens', token):
-            print 'Added token:', token
+            logger.debug('Added token: %s', token)
             self.add_delivered_token(token)
         cache_dir_lock.acquire()
         fname = self.get_filename('tokens', token)
