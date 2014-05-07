@@ -27,7 +27,9 @@ HTML_CONTENT_TYPES = (
     'application/xml',
     'application/xhtml+xml',)
 
-MAX_WAIT = 5  # 30
+MAX_WAIT = 5  # in seconds (30)
+
+DCLICK_CACHE_DIR = getattr(settings, 'DCLICK_CACHE_DIR', '/tmp/token_cache')
 
 
 class CsrfTokenPerRequestMiddleware(object):
@@ -44,7 +46,7 @@ class DoubleClickProtectionMiddleware(object):
 
     def __init__(self):
         """Constructor"""
-        self._cache_dir = settings.DCLICK_CACHE_DIR
+        self._cache_dir = DCLICK_CACHE_DIR
         self._create_directories()
 
     def _create_directories(self):

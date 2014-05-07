@@ -7,17 +7,17 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 
 
+DCLICK_MAX_TOKEN_AGE = getattr(settings, 'DCLICK_MAX_TOKEN_AGE', 86400)
+DCLICK_CACHE_DIR = getattr(settings, 'DCLICK_CACHE_DIR', '/tmp/token_cache')
+
+
 class Command(BaseCommand):
 
     help = 'Cleanup expired token tokens'
 
     def __init__(self, *args, **kwargs):
-        self._cache_dir = settings.DCLICK_CACHE_DIR
-        try:
-            max_age = settings.DCLICK_MAX_TOKEN_AGEE
-        except AttributeError:
-            max_age = 86400
-        self._max_token_age = max_age
+        self._cache_dir = DCLICK_CACHE_DIR
+        self._max_token_age = DCLICK_MAX_TOKEN_AGE
         BaseCommand.__init__(self, *args, **kwargs)
 
     def handle(self, *args, **options):
