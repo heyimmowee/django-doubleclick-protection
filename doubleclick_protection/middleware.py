@@ -37,7 +37,7 @@ class CsrfTokenPerRequestMiddleware(object):
 
     def process_view(self, request, callback, callback_args, callback_kwargs):
         token = _get_new_csrf_key()
-        logger.debug('Generated token %s' % token)
+        logger.debug('Generated new token %s' % token)
         request.META['CSRF_COOKIE'] = token
 
 
@@ -68,6 +68,11 @@ class DoubleClickProtectionMiddleware(object):
                         % (dir, str(err)))
 
     def _file_was_created(self, token):
+        """Check whether a token file has been created correctly.
+
+        :param token:
+        :returns: ``True`` or ``False``
+        """
         if self.token_exists('received_tokens', token):
             fname = self.get_filename('file_infos', token)
             fp = open(fname, 'rb')
@@ -77,11 +82,18 @@ class DoubleClickProtectionMiddleware(object):
         return False
 
     def _file_was_saved(self, token):
+        """Check whether a token file has been saved correctly.
+
+        The token file has to contain the ``True``flag.
+
+        :param token:
+        :returns: ``True`` or ``False``
+        """
         fname = self.get_filename('file_infos', token)
         fp = open(fname, 'rb')
         data = cPickle.load(fp)
         fp.close()
-        return data == True
+        return data is True
 
     def _token_was_delivered(self, token):
         """Check, whether a token as already been delivered."""
@@ -91,6 +103,8 @@ class DoubleClickProtectionMiddleware(object):
         """Mark a token as delivered.
 
         :param token:
+        :returns: ``True`` if the token has been delivered.
+        :raises StandardError: If the token couldn't be saved to the disk.
         """
         fname = self.get_filename('tokens', token)
         if os.path.isfile(fname):
@@ -109,6 +123,7 @@ class DoubleClickProtectionMiddleware(object):
         """Mark a token as received.
 
         :param token:
+        :raises StandardError: If the token couldn't be saved to the disk.
         """
         fname = self.get_filename('received_tokens', token)
         try:
@@ -156,6 +171,7 @@ class DoubleClickProtectionMiddleware(object):
 
         :param dir:
         :param token:
+        :raises StandardError: If the token couldn't be deleted from the disk.
         """
         fname = self.get_filename(dir, token)
         try:

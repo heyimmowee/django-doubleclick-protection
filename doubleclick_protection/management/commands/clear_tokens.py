@@ -13,7 +13,7 @@ DCLICK_CACHE_DIR = getattr(settings, 'DCLICK_CACHE_DIR', '/tmp/token_cache')
 
 class Command(BaseCommand):
 
-    help = 'Cleanup expired token tokens'
+    help = 'Cleanup expired tokens'
 
     def __init__(self, *args, **kwargs):
         self._cache_dir = DCLICK_CACHE_DIR
