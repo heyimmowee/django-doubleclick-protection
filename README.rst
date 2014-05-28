@@ -82,5 +82,4 @@ Commands
 
 .. |buildstatus| image:: https://secure.travis-ci.org/hkage/django-doubleclick-protection.png?branch=master
 .. _buildstatus: http://travis-ci.org/#!/hkage/django-doubleclick-protection
-.. |coverage| image:: https://coveralls.io/repos/hkage/django-doubleclick-protection/badge.png?branch=master
-.. _coverage: https://coveralls.io/repos/hkage/django-doubleclick-protection
+.. image:: https://coveralls.io/repos/hkage/django-doubleclick-protection/badge.png?branch=master :target: https://coveralls.io/r/hkage/django-doubleclick-protection?branch=master
