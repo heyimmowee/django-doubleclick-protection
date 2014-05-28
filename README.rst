@@ -3,8 +3,11 @@ django-doubleclick-protection
 
 A server-side attempt to prohibit double clicks in Django applications.
 
-|buildstatus|_
-|coverage|_
+.. image:: https://secure.travis-ci.org/hkage/django-doubleclick-protection.png?branch=master
+    :target: http://travis-ci.org/#!/hkage/django-doubleclick-protection
+
+.. image:: https://coveralls.io/repos/hkage/django-doubleclick-protection/badge.png?branch=master
+    :target: https://coveralls.io/r/hkage/django-doubleclick-protection
 
 The idea behind this was born with a Turbogears project we wrote in our
 company. We wanted to create a solution to solve the double-click
@@ -80,8 +83,3 @@ Commands
   ``DCLICK_MAX_TOKEN_AGE`` seconds. It should be called at least once per day
   to remove obsolete tokens.
 
-.. |buildstatus| image:: https://secure.travis-ci.org/hkage/django-doubleclick-protection.png?branch=master
-    :target: http://travis-ci.org/#!/hkage/django-doubleclick-protection
-
-.. |coverage| image:: https://coveralls.io/repos/hkage/django-doubleclick-protection/badge.png?branch=master
-    :target: https://coveralls.io/r/hkage/django-doubleclick-protection
